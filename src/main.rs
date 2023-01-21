@@ -2,6 +2,7 @@ use structopt::StructOpt;
 use exitfailure::{ExitFailure};
 use serde_derive::{Deserialize, Serialize};
 use reqwest::Url;
+use std::io;
 
 
 #[derive(StructOpt)]
@@ -63,7 +64,7 @@ struct Temps {
 struct Wind {
     speed: f64,
     deg: i32,
-    gust: f64
+    // gust: f64
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -82,6 +83,30 @@ struct Sys{
 
 }
 
+// News
+#[derive(Serialize, Deserialize, Debug)]
+
+struct News{
+    status: String,
+    totalResults: i32,
+    articles: Article
+}
+#[derive(Serialize, Deserialize, Debug)]
+struct Article{
+    source: Source,
+    author: String,
+    title: String,
+    description: String,
+    url: String,
+    urlToImage: String
+}
+#[derive(Serialize, Deserialize, Debug)]
+struct Source{
+    id: i32,
+    name: String
+}
+
+
 impl Forecast{
     async fn get(city: &String, country_code: &String) -> Result<Self, ExitFailure>{
         let url = format!("https://api.openweathermap.org/data/2.5/weather?q={},{}&appid=e60d17917503a572e0d4e1819f889c49&units=imperial
@@ -94,20 +119,48 @@ impl Forecast{
             .await?
             .json::<Forecast>()
             .await?;
+
+          
         Ok(resp)
     }
 }
 
+
+impl News {
+    async fn get(city: &String, country_code: &String) -> Result<Self, ExitFailure>{
+        let url = format!("https://newsapi.org/v2/everything?q='{} {} news'&apiKey=4118cd277f604aecbc6fb2db52329874
+        ", city , country_code);
+        let url = Url::parse(&*url)?;
+       
+        let resp = reqwest::get(url) 
+        .await?
+        .json::<News>()
+        .await?;
+
+        Ok(resp)
+    }
+}
 #[tokio::main]
 async fn main() -> Result<(), ExitFailure>{
     let args = Cli::from_args();
     let response = Forecast::get(&args.city, &args.country_code).await?;
+    let mut news_input = String::new();
     println!("The current weather in {}, {}, is {} :
     Temperature: {} F,
     High: {} F,
     Low: {} F,
     Feels like: {} F,
     Humidity: {}%", args.city, args.country_code, response.weather.details.description, response.main.temp, response.main.temp_max, response.main.temp_min, response.main.feels_like, response.main.humidity);
+    println!("Would you like to get local news for {}, {}?", &args.city, &args.country_code);
+    io::stdin().read_line(&mut news_input)?;
+    if  news_input.trim() == "y"{
+        let news_resp = News::get(&args.city, &args.country_code).await?;
+        println!("Here are your news articles {}", news_resp.articles);
+
+    }else{
+        print!("Thank you")
+    }
+
     Ok(())
 
 }
