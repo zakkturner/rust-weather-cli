@@ -56,15 +56,15 @@ struct Temps {
    temp_max: f64,
     pressure: i32,
     humidity: i32,
-    // sea_level: i32,
-    // grnd_level: i32 
+    sea_level: Option<i32>,
+    grnd_level: Option<i32> 
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Wind {
     speed: f64,
     deg: i32,
-    // gust: f64
+    gust: Option<f64>
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -85,11 +85,10 @@ struct Sys{
 
 // News
 #[derive(Serialize, Deserialize, Debug)]
-
 struct News{
     status: String,
-    totalResults: i32,
-    articles: Article
+    total_results: Option<i32>,
+    articles: Option<Article>
 }
 #[derive(Serialize, Deserialize, Debug)]
 struct Article{
@@ -98,7 +97,7 @@ struct Article{
     title: String,
     description: String,
     url: String,
-    urlToImage: String
+    url_to_image: String
 }
 #[derive(Serialize, Deserialize, Debug)]
 struct Source{
@@ -127,17 +126,28 @@ impl Forecast{
 
 
 impl News {
-    async fn get(city: &String, country_code: &String) -> Result<Self, ExitFailure>{
+    async fn get(city: &String, country_code: &String) -> Result<Vec<Self>, ExitFailure>{
+        println!("https://newsapi.org/v2/everything?q='{} {} news'&apiKey=4118cd277f604aecbc6fb2db52329874
+        ", city , country_code);
         let url = format!("https://newsapi.org/v2/everything?q='{} {} news'&apiKey=4118cd277f604aecbc6fb2db52329874
         ", city , country_code);
-        let url = Url::parse(&*url)?;
+       println!("{}", url);
+       let url = Url::parse(&*url)?;
        
-        let resp = reqwest::get(url) 
-        .await?
-        .json::<News>()
-        .await?;
+        let resp = reqwest::get(url).await?;
 
-        Ok(resp)
+        let articles: Vec<News> = resp.json().await?;
+
+        println!("{:?}", articles);
+        Ok(articles)
+    //     if resp.status() != reqwest::StatusCode::OK {
+    //         eprintln!("didn't get OK status: {}", resp.status());
+    //    } else {
+    //         let foo_bar = resp.json().await?;
+    //         println!("{}", foo_bar.a_value);
+    //    }
+        // Ok(resp)
+        // Err(e) => eprintln!("{}", e);
     }
 }
 #[tokio::main]
@@ -155,7 +165,7 @@ async fn main() -> Result<(), ExitFailure>{
     io::stdin().read_line(&mut news_input)?;
     if  news_input.trim() == "y"{
         let news_resp = News::get(&args.city, &args.country_code).await?;
-        println!("Here are your news articles {}", news_resp.articles);
+        println!("Here are your news articles {:?}", news_resp);
 
     }else{
         print!("Thank you")
